@@ -1,4 +1,4 @@
-use crate::error::LexerError;
+use crate::{error::LexerError, unexpected_char};
 
 use super::token::{Token, TokenKind};
 use anyhow::Result;
@@ -22,12 +22,36 @@ fn read_identifier(data: &str) -> (&str, usize) {
             }
             c.is_alphanumeric() || c == '_'
         })
-        .count();
+        .fold(0, |acc, c| acc + c.len_utf8());
     let matched = &data[..bytes_read];
     (matched, bytes_read)
 }
 
+#[allow(clippy::unnecessary_wraps)]
+fn read_lexer_pattern(data: &str) -> Result<(&str, usize)> {
+    let mut err = None;
+    let bytes_read = data
+        .chars()
+        // Ensure the pattern is valid. If it's not, return an error
+        .scan(&mut err, |err, c| {
+            if c.is_whitespace() {
+                **err = Some(unexpected_char!(c));
+                None
+            } else {
+                Some(c)
+            }
+        })
+        .take_while(|&c| c != ';')
+        .fold(0, |acc, c| acc + c.len_utf8());
+
+    match err {
+        Some(err) => err,
+        None => Ok((&data[..bytes_read], bytes_read)),
+    }
+}
+
 struct Tokenizer<'a> {
+    state: TokenizerState,
     row: usize,
     col: usize,
     remaining_text: &'a str,
@@ -36,11 +60,26 @@ struct Tokenizer<'a> {
 impl<'a> From<&'a str> for Tokenizer<'a> {
     fn from(value: &'a str) -> Self {
         Tokenizer {
+            state: TokenizerState::Initial,
             row: 0,
             col: 0,
             remaining_text: value,
         }
     }
+}
+
+/// States used to identify whether a lexer pattern is expected next
+/// Easier than constructing it in the parser, as it massively simplifies the NFAs
+#[derive(Debug, PartialEq)]
+enum TokenizerState {
+    /// Not currently working on any rule
+    Initial,
+    /// Fx working on a parser rule
+    Other,
+    /// Has seen name of lexer rule, now expecting a colon
+    LexerRule,
+    /// Has seen colon, now expecting a lexer pattern
+    LexerPattern,
 }
 
 impl<'a> Tokenizer<'a> {
@@ -89,23 +128,45 @@ impl<'a> Tokenizer<'a> {
 
         let next = self.remaining_text.chars().next().unwrap();
 
-        let (kind, size) = match next {
-            // Symbols
-            '(' => (TokenKind::OpenParen, 1),
-            ')' => (TokenKind::CloseParen, 1),
-            '|' => (TokenKind::Bar, 1),
-            ';' => (TokenKind::Semicolon, 1),
-            ':' => (TokenKind::Colon, 1),
-            '=' => (TokenKind::Equal, 1),
-            '*' => (TokenKind::Star, 1),
-
-            // Other
-            c @ '_' | c if c.is_alphanumeric() => {
-                let (id, length) = read_identifier(self.remaining_text);
-                (TokenKind::AlphaNumeric(id.into()), length)
+        let (kind, size) = match self.state {
+            TokenizerState::LexerPattern => {
+                let (pattern, length) = read_lexer_pattern(self.remaining_text)?;
+                (TokenKind::LexerPattern(pattern.into()), length)
             }
-            _ => return Err(LexerError::UnexpectedChar(next).into()),
+            _ => match next {
+                // Symbols
+                '|' => (TokenKind::Bar, 1),
+                ';' => (TokenKind::Semicolon, 1),
+                ':' => (TokenKind::Colon, 1),
+
+                // Other
+                c @ '_' | c if c.is_alphanumeric() => {
+                    let (id, length) = read_identifier(self.remaining_text);
+                    if c.is_uppercase() {
+                        (TokenKind::LexerIdent(id.into()), length)
+                    } else {
+                        (TokenKind::ParserIdent(id.into()), length)
+                    }
+                }
+                _ => return unexpected_char!(next),
+            },
         };
+
+        // Track the current state
+        match (&self.state, &kind) {
+            (TokenizerState::Initial, TokenKind::LexerIdent(_)) => {
+                self.state = TokenizerState::LexerRule;
+            }
+            (TokenizerState::LexerRule, TokenKind::Colon) => {
+                self.state = TokenizerState::LexerPattern;
+            }
+            (_, TokenKind::Semicolon) => {
+                self.state = TokenizerState::Initial;
+            }
+            _ => {
+                self.state = TokenizerState::Other;
+            }
+        }
 
         let token = Token::new(kind, self.row, self.col);
         self.advance(size);
@@ -184,45 +245,69 @@ mod tests {
         };
     }
 
-    test_next_token!(tokenize_single_open_brace, "(" => TokenKind::OpenParen);
-    test_next_token!(tokenize_single_close_brace, ")" => TokenKind::CloseParen);
-    test_next_token!(tokenize_single_star, "*" => TokenKind::Star);
     test_next_token!(tokenize_single_bar, "|" => TokenKind::Bar);
     test_next_token!(tokenize_single_semicolon, ";" => TokenKind::Semicolon);
     test_next_token!(tokenize_single_colon, ":" => TokenKind::Colon);
-    test_next_token!(tokenize_single_equal, "=" => TokenKind::Equal);
-    test_next_token!(tokenize_alpha_numeric, "abc" => TokenKind::AlphaNumeric("abc".into()));
-    test_next_token!(tokenize_open_brace_with_trail, ")fdsfs" => TokenKind::CloseParen);
+    test_next_token!(tokenize_single_parser_ident, "abc" => TokenKind::ParserIdent("abc".into()));
+    test_next_token!(tokenize_single_lexer_ident, "ABC" => TokenKind::LexerIdent("ABC".into()));
+    test_next_token!(tokenize_single_open_brace_with_trail, "|fdsfs" => TokenKind::Bar);
 
     test_tokenize!(
-        tokenize_program_rule,
-        "program ::= rule SEMI | rule SEMI program" => vec![
-            token!(TokenKind::AlphaNumeric("program".into()), 0, 0),
-            token!(TokenKind::Colon, 0, 8),
-            token!(TokenKind::Colon, 0, 9),
-            token!(TokenKind::Equal, 0, 10),
-            token!(TokenKind::AlphaNumeric("rule".into()), 0, 12),
-            token!(TokenKind::AlphaNumeric("SEMI".into()), 0, 17),
-            token!(TokenKind::Bar, 0, 22),
-            token!(TokenKind::AlphaNumeric("rule".into()), 0, 24),
-            token!(TokenKind::AlphaNumeric("SEMI".into()), 0, 29),
-            token!(TokenKind::AlphaNumeric("program".into()), 0, 34),
+        tokenize_parser_rule,
+        "program: rule SEMI | rule SEMI program;" => vec![
+            token!(TokenKind::ParserIdent("program".into()), 0, 0),
+            token!(TokenKind::Colon, 0, 7),
+            token!(TokenKind::ParserIdent("rule".into()), 0, 9),
+            token!(TokenKind::LexerIdent("SEMI".into()), 0, 14),
+            token!(TokenKind::Bar, 0, 19),
+            token!(TokenKind::ParserIdent("rule".into()), 0, 21),
+            token!(TokenKind::LexerIdent("SEMI".into()), 0, 26),
+            token!(TokenKind::ParserIdent("program".into()), 0, 31),
+            token!(TokenKind::Semicolon, 0, 38),
         ]
     );
 
     test_tokenize!(
-        tokenize_program_rule_with_comments,
-        "program ::= rule SEMI // comment\n| rule SEMI program" => vec![
-            token!(TokenKind::AlphaNumeric("program".into()), 0, 0),
-            token!(TokenKind::Colon, 0, 8),
-            token!(TokenKind::Colon, 0, 9),
-            token!(TokenKind::Equal, 0, 10),
-            token!(TokenKind::AlphaNumeric("rule".into()), 0, 12),
-            token!(TokenKind::AlphaNumeric("SEMI".into()), 0, 17),
+        tokenize_parser_rule_with_comments,
+        "program: rule SEMI // comment\n| rule SEMI program;" => vec![
+            token!(TokenKind::ParserIdent("program".into()), 0, 0),
+            token!(TokenKind::Colon, 0, 7),
+            token!(TokenKind::ParserIdent("rule".into()), 0, 9),
+            token!(TokenKind::LexerIdent("SEMI".into()), 0, 14),
             token!(TokenKind::Bar, 1, 0),
-            token!(TokenKind::AlphaNumeric("rule".into()), 1, 2),
-            token!(TokenKind::AlphaNumeric("SEMI".into()), 1, 7),
-            token!(TokenKind::AlphaNumeric("program".into()), 1, 12),
+            token!(TokenKind::ParserIdent("rule".into()), 1, 2),
+            token!(TokenKind::LexerIdent("SEMI".into()), 1, 7),
+            token!(TokenKind::ParserIdent("program".into()), 1, 12),
+            token!(TokenKind::Semicolon, 1, 19),
+        ]
+    );
+
+    test_tokenize!(
+        tokenize_lexer_rule,
+        "LexerRule: [A-Z][a-zA-Z0-9_]*'*;" => vec![
+            token!(TokenKind::LexerIdent("LexerRule".into()), 0, 0),
+            token!(TokenKind::Colon, 0, 9),
+            token!(TokenKind::LexerPattern("[A-Z][a-zA-Z0-9_]*'*".into()), 0, 11),
+            token!(TokenKind::Semicolon, 0, 31),
+        ]
+    );
+
+    test_tokenize!(
+        tokenize_parser_and_lexer_rule,
+        "program: rule SEMI | rule SEMI program;\nLexerRule: [A-Z][a-zA-Z0-9_]*'*;" => vec![
+            token!(TokenKind::ParserIdent("program".into()), 0, 0),
+            token!(TokenKind::Colon, 0, 7),
+            token!(TokenKind::ParserIdent("rule".into()), 0, 9),
+            token!(TokenKind::LexerIdent("SEMI".into()), 0, 14),
+            token!(TokenKind::Bar, 0, 19),
+            token!(TokenKind::ParserIdent("rule".into()), 0, 21),
+            token!(TokenKind::LexerIdent("SEMI".into()), 0, 26),
+            token!(TokenKind::ParserIdent("program".into()), 0, 31),
+            token!(TokenKind::Semicolon, 0, 38),
+            token!(TokenKind::LexerIdent("LexerRule".into()), 1, 0),
+            token!(TokenKind::Colon, 1, 9),
+            token!(TokenKind::LexerPattern("[A-Z][a-zA-Z0-9_]*'*".into()), 1, 11),
+            token!(TokenKind::Semicolon, 1, 31),
         ]
     );
 }

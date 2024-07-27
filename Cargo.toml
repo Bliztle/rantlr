@@ -8,4 +8,6 @@ edition = "2021"
 [dependencies]
 anyhow = "1.0.86"
 clap = { version = "4.5.11", features = ["derive"] }
+itertools = "0.13.0"
+log = "0.4.22"
 thiserror = "1.0.63"

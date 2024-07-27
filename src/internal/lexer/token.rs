@@ -1,13 +1,11 @@
 #[derive(Debug, PartialEq)]
 pub enum TokenKind {
-    AlphaNumeric(String),
-    OpenParen,
-    CloseParen,
-    Star,
+    ParserIdent(String),
+    LexerIdent(String),
+    LexerPattern(String),
     Bar,
     Semicolon,
     Colon,
-    Equal,
 }
 
 #[derive(Debug, PartialEq)]
