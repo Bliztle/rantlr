@@ -1,0 +1,68 @@
+---
+source: src/internal/parser/functional.rs
+assertion_line: 163
+expression: tree
+---
+Concat(
+    Node {
+        node: NonTerminal(
+            "program",
+            Node {
+                node: Rule(
+                    NonTerminal(
+                        "rule",
+                        Node {
+                            node: Terminal(
+                                "rule",
+                                Node {
+                                    node: Epsilon,
+                                    annotations: {},
+                                },
+                            ),
+                            annotations: {},
+                        },
+                    ),
+                    Node {
+                        node: Concat(
+                            Node {
+                                node: Rule(
+                                    NonTerminal(
+                                        "rule",
+                                        Node {
+                                            node: Terminal(
+                                                "SEMI",
+                                                Node {
+                                                    node: NonTerminal(
+                                                        "program",
+                                                        Node {
+                                                            node: Epsilon,
+                                                            annotations: {},
+                                                        },
+                                                    ),
+                                                    annotations: {},
+                                                },
+                                            ),
+                                            annotations: {},
+                                        },
+                                    ),
+                                    Node {
+                                        node: Epsilon,
+                                        annotations: {},
+                                    },
+                                ),
+                                annotations: {},
+                            },
+                        ),
+                        annotations: {},
+                    },
+                ),
+                annotations: {},
+            },
+        ),
+        annotations: {},
+    },
+    Node {
+        node: Epsilon,
+        annotations: {},
+    },
+)

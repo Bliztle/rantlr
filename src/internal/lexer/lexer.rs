@@ -199,7 +199,14 @@ pub fn tokenize(src: &str) -> Result<Vec<Token>> {
         tokens.push(token);
     }
 
-    Ok(tokens)
+    if let Some(last) = tokens.last() {
+        let mut eof = last.clone();
+        eof.kind = TokenKind::EOF;
+        tokens.push(eof);
+        Ok(tokens)
+    } else {
+        Err(LexerError::UnexpectedEof.into())
+    }
 }
 
 #[cfg(test)]
@@ -264,6 +271,7 @@ mod tests {
             token!(TokenKind::LexerIdent("SEMI".into()), 0, 26),
             token!(TokenKind::ParserIdent("program".into()), 0, 31),
             token!(TokenKind::Semicolon, 0, 38),
+            token!(TokenKind::EOF, 0, 38),
         ]
     );
 
@@ -279,6 +287,7 @@ mod tests {
             token!(TokenKind::LexerIdent("SEMI".into()), 1, 7),
             token!(TokenKind::ParserIdent("program".into()), 1, 12),
             token!(TokenKind::Semicolon, 1, 19),
+            token!(TokenKind::EOF, 1, 19),
         ]
     );
 
@@ -289,6 +298,7 @@ mod tests {
             token!(TokenKind::Colon, 0, 9),
             token!(TokenKind::LexerPattern("[A-Z][a-zA-Z0-9_]*'*".into()), 0, 11),
             token!(TokenKind::Semicolon, 0, 31),
+            token!(TokenKind::EOF, 0, 31),
         ]
     );
 
@@ -308,6 +318,7 @@ mod tests {
             token!(TokenKind::Colon, 1, 9),
             token!(TokenKind::LexerPattern("[A-Z][a-zA-Z0-9_]*'*".into()), 1, 11),
             token!(TokenKind::Semicolon, 1, 31),
+            token!(TokenKind::EOF, 1, 31),
         ]
     );
 }

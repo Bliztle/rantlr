@@ -1,6 +1,6 @@
 use crate::ast::Annotation;
 
-struct Grammer {
+pub struct Grammar {
     rules: Vec<Rule>,
 }
 
@@ -13,9 +13,9 @@ enum Ident {
     NonTerminal(String),
 }
 
-impl From<Vec<Rule>> for Grammer {
+impl From<Vec<Rule>> for Grammar {
     fn from(rules: Vec<Rule>) -> Self {
-        Grammer { rules }
+        Grammar { rules }
     }
 }
 

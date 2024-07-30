@@ -1,3 +1,5 @@
+//! # This is a header
+//! Some more text
 mod ast;
 mod error;
 mod internal;
@@ -6,7 +8,7 @@ use std::{fs, path::PathBuf};
 
 use clap::Parser;
 
-use crate::internal::lexer::lexer::tokenize;
+use crate::internal::{lexer::lexer::tokenize, parser::functional::parse};
 
 #[derive(Parser)]
 #[command(version, about, long_about)]
@@ -25,4 +27,7 @@ fn main() {
 
     let tokens = tokenize(&content).expect("Failed to tokenize");
     println!("{tokens:?}");
+
+    let parse_tree = parse(tokens).expect("Failed to parse tree");
+    println!("{parse_tree:?}");
 }
