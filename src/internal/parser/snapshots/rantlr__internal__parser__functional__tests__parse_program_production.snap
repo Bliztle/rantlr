@@ -1,6 +1,5 @@
 ---
 source: src/internal/parser/functional.rs
-assertion_line: 163
 expression: tree
 ---
 Concat(
@@ -13,12 +12,14 @@ Concat(
                         "rule",
                         Node {
                             node: Terminal(
-                                "rule",
+                                "SEMI",
                                 Node {
                                     node: Epsilon,
+                                    _marker: PhantomData<rantlr::ast::marked::DefaultMarker>,
                                     annotations: {},
                                 },
                             ),
+                            _marker: PhantomData<rantlr::ast::marked::DefaultMarker>,
                             annotations: {},
                         },
                     ),
@@ -36,33 +37,42 @@ Concat(
                                                         "program",
                                                         Node {
                                                             node: Epsilon,
+                                                            _marker: PhantomData<rantlr::ast::marked::DefaultMarker>,
                                                             annotations: {},
                                                         },
                                                     ),
+                                                    _marker: PhantomData<rantlr::ast::marked::DefaultMarker>,
                                                     annotations: {},
                                                 },
                                             ),
+                                            _marker: PhantomData<rantlr::ast::marked::DefaultMarker>,
                                             annotations: {},
                                         },
                                     ),
                                     Node {
                                         node: Epsilon,
+                                        _marker: PhantomData<rantlr::ast::marked::DefaultMarker>,
                                         annotations: {},
                                     },
                                 ),
+                                _marker: PhantomData<rantlr::ast::marked::DefaultMarker>,
                                 annotations: {},
                             },
                         ),
+                        _marker: PhantomData<rantlr::ast::marked::DefaultMarker>,
                         annotations: {},
                     },
                 ),
+                _marker: PhantomData<rantlr::ast::marked::DefaultMarker>,
                 annotations: {},
             },
         ),
+        _marker: PhantomData<rantlr::ast::marked::DefaultMarker>,
         annotations: {},
     },
     Node {
         node: Epsilon,
+        _marker: PhantomData<rantlr::ast::marked::DefaultMarker>,
         annotations: {},
     },
 )
