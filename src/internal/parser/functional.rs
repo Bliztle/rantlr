@@ -1,4 +1,5 @@
 use crate::{
+    ast::Node,
     error::ParserError,
     internal::lexer::token::{Token, TokenKind},
     unexpected_token,
@@ -81,7 +82,7 @@ impl<I: Iterator<Item = Token>> FunctionalParser<I> {
     fn parse_r2(&mut self) -> Result<ParseR2> {
         let rule = self.parse_r3()?;
         let rest = self.parse_r4()?;
-        Ok(ParseR2::Rule(rule, rest.into()))
+        Ok(ParseR2::Rule(rule.into(), rest.into()))
     }
 
     fn parse_r3(&mut self) -> Result<ParseR3> {
@@ -116,16 +117,20 @@ impl<I: Iterator<Item = Token>> FunctionalParser<I> {
     }
 }
 
-pub fn parse(input: Vec<Token>) -> Result<ParseS> {
+pub fn parse(input: Vec<Token>) -> Result<Node<ParseS>> {
     let mut iter = input.into_iter();
     let first = iter.next();
     match first {
-        None => Ok(ParseS::Epsilon),
-        Some(token) => FunctionalParser {
-            remaining_input: iter,
-            next: token,
+        None => Ok(ParseS::Epsilon.into()),
+        Some(token) => {
+            let parsed = FunctionalParser {
+                remaining_input: iter,
+                next: token,
+            }
+            .parse_s()?;
+
+            Ok(parsed.into())
         }
-        .parse_s(),
     }
 }
 

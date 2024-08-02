@@ -1,20 +1,24 @@
 use crate::ast::Annotation;
 
+#[derive(Debug)]
 pub struct Grammar {
-    rules: Vec<Rule>,
+    pub rules: Vec<Production>,
 }
 
-enum Rule {
+#[derive(Debug)]
+pub enum Production {
     Parser(String, Vec<Vec<Ident>>),
     Lexer(String, String),
 }
-enum Ident {
+
+#[derive(Debug)]
+pub enum Ident {
     Terminal(String),
     NonTerminal(String),
 }
 
-impl From<Vec<Rule>> for Grammar {
-    fn from(rules: Vec<Rule>) -> Self {
+impl From<Vec<Production>> for Grammar {
+    fn from(rules: Vec<Production>) -> Self {
         Grammar { rules }
     }
 }
@@ -29,4 +33,4 @@ impl From<&str> for Ident {
     }
 }
 
-impl Annotation for Rule {}
+impl Annotation for Production {}

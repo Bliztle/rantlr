@@ -8,7 +8,7 @@ pub trait Marker {}
 
 #[derive(Debug)]
 pub struct Node<TNode, TMarker: Marker> {
-    node: TNode,
+    pub node: TNode,
     _marker: PhantomData<TMarker>,
     // This is kinda cursed, but only accessed from typesafe functions
     annotations: HashMap<TypeId, Box<dyn Any>>,

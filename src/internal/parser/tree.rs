@@ -14,7 +14,7 @@ pub enum ParseR1 {
 
 #[derive(Debug)]
 pub enum ParseR2 {
-    Rule(ParseR3, Box<Node<ParseR4>>),
+    Rule(Box<Node<ParseR3>>, Box<Node<ParseR4>>),
 }
 
 #[derive(Debug)]

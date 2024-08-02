@@ -3,12 +3,13 @@
 mod ast;
 mod error;
 mod internal;
+mod lexer;
 
 use std::{fs, path::PathBuf};
 
 use clap::Parser;
 
-use crate::internal::{lexer::lexer::tokenize, parser::functional::parse};
+use crate::internal::{ast::Grammar, lexer::lexer::tokenize, parser::functional::parse};
 
 #[derive(Parser)]
 #[command(version, about, long_about)]
@@ -30,4 +31,7 @@ fn main() {
 
     let parse_tree = parse(tokens).expect("Failed to parse tree");
     println!("{parse_tree:?}");
+
+    let grammar = Grammar::from(parse_tree);
+    println!("{grammar:?}");
 }
